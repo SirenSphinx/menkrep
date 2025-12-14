@@ -45,7 +45,7 @@ jobs:
         run: |
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
           choco install openssl -y
-          choco install zlib -y
+          choco install zlib.install -y  # <-- INI PERUBAHANNYA
 
       # 5. Konfigurasi proyek menggunakan CMake
       - name: Configure CMake
