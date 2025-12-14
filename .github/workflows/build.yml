@@ -31,71 +31,41 @@ jobs:
           distribution: 'temurin'
           java-version: '8'
 
-      # 3. Menginstal Qt (framework utama), menggunakan action buatan komunitas
+      # 3. Menginstal Qt (framework utama)
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
-          # Versi Qt. 5.15.2 adalah versi LTS yang stabil.
           version: '5.15.2'
-          # Arsitektur MinGW 32-bit, seperti yang disarankan BUILD.md
           arch: 'win32_mingw81'
 
-      # 4. Menginstal dependensi lain (CMake, OpenSSL, zlib) menggunakan package manager Windows 'Chocolatey'
-      - name: Install Other Dependencies
+      # 4. Menyiapkan MSYS2 dan menginstal semua dependensi dari sana
+      - name: Setup MSYS2 and Dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW32 # Menentukan lingkungan MinGW 32-bit
+          update: true
+          install: >- # Daftar paket yang akan diinstal melalui 'pacman'
+            mingw-w64-i686-cmake
+            mingw-w64-i686-toolchain
+            mingw-w64-i64-zlib
+            mingw-w64-i686-openssl
+
+      # 5. Konfigurasi, Build, dan Install (semua dalam shell MSYS2)
+      - name: Configure, Build, and Install
+        shell: msys2 {0}
         run: |
-          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
-          choco install openssl -y
-          choco install zlib-dev-mingw -y # <-- INI PERUBAHANNYA
-
-      # 5. Konfigurasi proyek menggunakan CMake
-      - name: Configure CMake
-        id: cmake_configure
-        continue-on-error: true
-        run: >
-          cmake 
-          -S .
-          -B build
-          -G "MinGW Makefiles"
-          -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }};C:\ProgramData\chocolatey\lib\openssl\tools;C:\ProgramData\chocolatey\lib\zlib\tools"
-          -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations"
-
-      # 6. Meng-upload log CMake jika konfigurasi gagal
-      - name: Upload CMake Logs on Failure
-        if: steps.cmake_configure.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: cmake-failure-logs
-          path: |
-            build/CMakeFiles/CMakeOutput.log
-            build/CMakeFiles/CMakeError.log
-          if-no-files-found: ignore
-
-      # 7. Meng-compile proyek menggunakan MinGW dan menyimpan log-nya
-      - name: Build Project
-        id: build_step
-        continue-on-error: true
-        run: cmake --build build --config Release -- -j2 > build_log.txt 2>&1
-
-      # 8. Meng-upload log build jika kompilasi gagal
-      - name: Upload Build Log on Failure
-        if: steps.build_step.outcome == 'failure' && steps.cmake_configure.outcome != 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-failure-log
-          path: build_log.txt
-          if-no-files-found: ignore
+          # Konfigurasi proyek menggunakan CMake
+          cmake -S . -B build -G "MinGW Makefiles" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
           
-      # 9. Jika langkah build gagal, kita hentikan workflow di sini agar tidak melanjutkan
-      - name: Check build status
-        if: steps.build_step.outcome == 'failure' || steps.cmake_configure.outcome == 'failure'
-        run: exit 1
+          # Meng-compile proyek
+          cmake --build build --config Release -- -j2
+          
+          # Menginstal aplikasi ke folder 'dist'
+          cmake --install build --prefix ./dist
 
-      # 10. Menginstal aplikasi ke folder 'dist' untuk pengemasan
-      - name: Install to Staging Directory
-        run: cmake --install build --prefix ./dist
-
-      # 11. Mengunggah hasil akhir sebagai "Artifact"
+      # 6. Mengunggah hasil akhir sebagai "Artifact"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
