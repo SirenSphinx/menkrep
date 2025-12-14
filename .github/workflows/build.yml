@@ -47,7 +47,7 @@ jobs:
           install: >- # Daftar paket yang akan diinstal melalui 'pacman'
             mingw-w64-i686-cmake
             mingw-w64-i686-toolchain
-            mingw-w64-i686-zlib  # <-- INI PERBAIKANNYA (i686 bukan i64)
+            mingw-w64-i686-zlib
             mingw-w64-i686-openssl
 
       # 5. Konfigurasi, Build, dan Install (semua dalam shell MSYS2)
