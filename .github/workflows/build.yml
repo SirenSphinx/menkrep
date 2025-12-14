@@ -36,18 +36,20 @@ jobs:
         with:
           msystem: MINGW32 # Menentukan lingkungan MinGW 32-bit
           update: true
-          install: >- # Daftar paket yang akan diinstal melalui 'pacman'
+          install: >-
             mingw-w64-i686-cmake
             mingw-w64-i686-toolchain
             mingw-w64-i686-zlib
             mingw-w64-i686-openssl
-            mingw-w64-i686-qt5   # <-- PERUBAHAN UTAMA: Qt diinstal di sini
+            mingw-w64-i686-qt5-base
+            mingw-w64-i686-qt5-svg
+            mingw-w64-i686-qt5-xml
 
       # 4. Konfigurasi, Build, dan Install (semua dalam shell MSYS2)
       - name: Configure, Build, and Install
         shell: msys2 {0}
         run: |
-          # Konfigurasi proyek menggunakan CMake. Perintahnya sekarang sangat bersih.
+          # Konfigurasi proyek menggunakan CMake.
           cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
           
           # Meng-compile proyek
