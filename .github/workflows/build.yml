@@ -3,7 +3,6 @@ name: Compile MultiMC for Windows
 
 # Pemicu: Kapan workflow ini harus dijalankan?
 on:
-  # Saat ada 'push' ke branch 'main'
   push:
     branches: [ "main" ]
   # Agar bisa dijalankan secara manual dari tab Actions
@@ -24,22 +23,15 @@ jobs:
         with:
           submodules: 'recursive'
 
-      # 2. Menginstal Java JDK 8, yang dibutuhkan oleh MultiMC
+      # 2. Menginstal Java JDK 8 (ini tetap dibutuhkan karena merupakan dependensi runtime)
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '8'
 
-      # 3. Menginstal Qt (framework utama)
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v3
-        with:
-          version: '5.15.2'
-          arch: 'win32_mingw81'
-
-      # 4. Menyiapkan MSYS2 dan menginstal semua dependensi dari sana
-      - name: Setup MSYS2 and Dependencies
+      # 3. Menyiapkan MSYS2 dan menginstal SEMUA dependensi dari sana
+      - name: Setup MSYS2 and All C++ Dependencies
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW32 # Menentukan lingkungan MinGW 32-bit
@@ -49,13 +41,13 @@ jobs:
             mingw-w64-i686-toolchain
             mingw-w64-i686-zlib
             mingw-w64-i686-openssl
+            mingw-w64-i686-qt5   # <-- PERUBAHAN UTAMA: Qt diinstal di sini
 
-      # 5. Konfigurasi, Build, dan Install (semua dalam shell MSYS2)
+      # 4. Konfigurasi, Build, dan Install (semua dalam shell MSYS2)
       - name: Configure, Build, and Install
         shell: msys2 {0}
         run: |
-          # Konfigurasi proyek menggunakan CMake.
-          # Kita hapus CMAKE_PREFIX_PATH agar CMake bisa menemukan Qt secara otomatis.
+          # Konfigurasi proyek menggunakan CMake. Perintahnya sekarang sangat bersih.
           cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
           
           # Meng-compile proyek
@@ -64,7 +56,7 @@ jobs:
           # Menginstal aplikasi ke folder 'dist'
           cmake --install build --prefix ./dist
 
-      # 6. Mengunggah hasil akhir sebagai "Artifact"
+      # 5. Mengunggah hasil akhir sebagai "Artifact"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
