@@ -1,7 +1,5 @@
-# Nama workflow Anda, akan muncul di tab "Actions"
-name: Compile MultiMC for Windows
+name: Build MultiMC for Windows
 
-# Pemicu: Kapan workflow ini harus dijalankan?
 on:
   push:
     branches: [ "main" ]
@@ -9,57 +7,60 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
+    env:
+      INSTALL_DIR: "install"
+      BUILD_DIR: "build"
 
     steps:
       # 1. Mengunduh kode sumber
-      - name: Checkout Code + Submodules
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      # 2. Menginstal Java JDK 8
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '8'
-
-      # 3. Menyiapkan MSYS2
-      - name: Setup MSYS2
+      # 2. Menyiapkan MSYS2 dan semua dependensi menggunakan metode resmi
+      - name: Setup MSYS2 Environment and Dependencies
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW32
+          msystem: mingw64  # Menggunakan arsitektur 64-bit
           update: true
+          install: git
+          pacboy: >-      # Menggunakan 'pacboy' seperti pada workflow resmi
+            toolchain:p
+            cmake:p
+            ninja:p
+            qt5-base:p
+            qt5-svg:p
+            qt5-imageformats:p
+            qt5-charts:p
+            quazip-qt5:p
 
-      # 4. Memperbarui database Pacman dan Menginstal Dependensi
-      - name: Update Pacman and Install Dependencies
+      # 3. Konfigurasi proyek menggunakan CMake
+      - name: Configure CMake
         shell: msys2 {0}
         run: |
-          # Perbarui database paket terlebih dahulu
-          pacman -Syuu --noconfirm
-          
-          # Instal semua dependensi yang dibutuhkan
-          pacman -S --noconfirm --needed \
-            mingw-w64-i686-cmake \
-            mingw-w64-i686-toolchain \
-            mingw-w64-i686-zlib \
-            mingw-w64-i686-openssl \
-            mingw-w64-i686-qt5-base \
-            mingw-w64-i686-qt5-svg \
-            mingw-w64-i686-qt5-xml
+          cmake -S . -B ${{ env.BUILD_DIR }} `
+            -G Ninja `
+            -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DLauncher_QT_VERSION_MAJOR=5
 
-      # 5. Konfigurasi, Build, dan Install
-      - name: Configure, Build, and Install
+      # 4. Meng-compile proyek
+      - name: Build Project
         shell: msys2 {0}
         run: |
-          cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release -- -j2
-          cmake --install build --prefix ./dist
+          cmake --build ${{ env.BUILD_DIR }}
 
-      # 6. Mengunggah hasil akhir sebagai "Artifact"
-      - name: Upload Artifact
+      # 5. Menginstal aplikasi ke direktori 'install'
+      - name: Install Application
+        shell: msys2 {0}
+        run: |
+          cmake --install ${{ env.BUILD_DIR }}
+
+      # 6. Mengunggah hasil build sebagai artifact
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: MultiMC-Windows-Build
-          path: ./dist/
+          path: ${{ env.INSTALL_DIR }}/**
