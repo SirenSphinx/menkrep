@@ -68,7 +68,7 @@ jobs:
 
       # 8. Mengunggah hasil akhir sebagai "Artifact"
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MultiMC-Windows-Build
           path: ./dist/
