@@ -54,10 +54,9 @@ jobs:
       - name: Configure, Build, and Install
         shell: msys2 {0}
         run: |
-          # Konfigurasi proyek menggunakan CMake
-          cmake -S . -B build -G "MinGW Makefiles" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
+          # Konfigurasi proyek menggunakan CMake.
+          # Kita hapus CMAKE_PREFIX_PATH agar CMake bisa menemukan Qt secara otomatis.
+          cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
           
           # Meng-compile proyek
           cmake --build build --config Release -- -j2
