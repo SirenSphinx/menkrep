@@ -30,6 +30,7 @@ jobs:
             toolchain:p
             cmake:p
             ninja:p
+            extra-cmake-modules:p
             qt5-base:p
             qt5-svg:p
             qt5-imageformats:p
