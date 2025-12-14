@@ -5,60 +5,59 @@ name: Compile MultiMC for Windows
 on:
   push:
     branches: [ "main" ]
-  # Agar bisa dijalankan secara manual dari tab Actions
   workflow_dispatch:
 
-# Daftar "pekerjaan" yang harus dilakukan
 jobs:
-  # Kita definisikan satu pekerjaan bernama "build-windows"
   build-windows:
-    # Pekerjaan ini akan berjalan di mesin virtual Windows versi terbaru
     runs-on: windows-latest
 
-    # Ini adalah langkah-langkah yang akan dieksekusi secara berurutan
     steps:
-      # 1. Mengunduh kode sumber Anda (termasuk submodul) ke mesin virtual
+      # 1. Mengunduh kode sumber
       - name: Checkout Code + Submodules
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      # 2. Menginstal Java JDK 8 (ini tetap dibutuhkan karena merupakan dependensi runtime)
+      # 2. Menginstal Java JDK 8
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '8'
 
-      # 3. Menyiapkan MSYS2 dan menginstal SEMUA dependensi dari sana
-      - name: Setup MSYS2 and All C++ Dependencies
+      # 3. Menyiapkan MSYS2
+      - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW32 # Menentukan lingkungan MinGW 32-bit
+          msystem: MINGW32
           update: true
-          install: >-
-            mingw-w64-i686-cmake
-            mingw-w64-i686-toolchain
-            mingw-w64-i686-zlib
-            mingw-w64-i686-openssl
-            mingw-w64-i686-qt5-base
-            mingw-w64-i686-qt5-svg
+
+      # 4. Memperbarui database Pacman dan Menginstal Dependensi
+      - name: Update Pacman and Install Dependencies
+        shell: msys2 {0}
+        run: |
+          # Perbarui database paket terlebih dahulu
+          pacman -Syuu --noconfirm
+          
+          # Instal semua dependensi yang dibutuhkan
+          pacman -S --noconfirm --needed \
+            mingw-w64-i686-cmake \
+            mingw-w64-i686-toolchain \
+            mingw-w64-i686-zlib \
+            mingw-w64-i686-openssl \
+            mingw-w64-i686-qt5-base \
+            mingw-w64-i686-qt5-svg \
             mingw-w64-i686-qt5-xml
 
-      # 4. Konfigurasi, Build, dan Install (semua dalam shell MSYS2)
+      # 5. Konfigurasi, Build, dan Install
       - name: Configure, Build, and Install
         shell: msys2 {0}
         run: |
-          # Konfigurasi proyek menggunakan CMake.
           cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-          
-          # Meng-compile proyek
           cmake --build build --config Release -- -j2
-          
-          # Menginstal aplikasi ke folder 'dist'
           cmake --install build --prefix ./dist
 
-      # 5. Mengunggah hasil akhir sebagai "Artifact"
+      # 6. Mengunggah hasil akhir sebagai "Artifact"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
