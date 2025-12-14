@@ -19,14 +19,14 @@ jobs:
         with:
           submodules: 'recursive'
 
-      # 2. Menyiapkan MSYS2 dan semua dependensi menggunakan metode resmi
+      # 2. Menyiapkan MSYS2 dan dependensi
       - name: Setup MSYS2 Environment and Dependencies
         uses: msys2/setup-msys2@v2
         with:
-          msystem: mingw64  # Menggunakan arsitektur 64-bit
+          msystem: mingw64
           update: true
           install: git
-          pacboy: >-      # Menggunakan 'pacboy' seperti pada workflow resmi
+          pacboy: >-
             toolchain:p
             cmake:p
             ninja:p
@@ -37,29 +37,44 @@ jobs:
             qt5-charts:p
             quazip-qt5:p
 
-      # 3. Konfigurasi proyek menggunakan CMake
+      # 3. Konfigurasi proyek dan simpan log-nya
       - name: Configure CMake
+        id: configure_step
+        continue-on-error: true # Terus berjalan meskipun error, agar bisa upload log
         shell: msys2 {0}
         run: |
           cmake -S . -B ${{ env.BUILD_DIR }} `
             -G Ninja `
             -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} `
             -DCMAKE_BUILD_TYPE=Release `
-            -DLauncher_QT_VERSION_MAJOR=5
+            -DLauncher_QT_VERSION_MAJOR=5 > configure_log.txt 2>&1
 
-      # 4. Meng-compile proyek
+      # 4. Mengunggah log konfigurasi jika terjadi error
+      - name: Upload Configure Log on Failure
+        if: steps.configure_step.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: configure-failure-log
+          path: configure_log.txt
+
+      # 5. Hentikan workflow jika konfigurasi gagal
+      - name: Check configure status
+        if: steps.configure_step.outcome == 'failure'
+        run: exit 1
+
+      # 6. Meng-compile proyek
       - name: Build Project
         shell: msys2 {0}
         run: |
           cmake --build ${{ env.BUILD_DIR }}
 
-      # 5. Menginstal aplikasi ke direktori 'install'
+      # 7. Menginstal aplikasi
       - name: Install Application
         shell: msys2 {0}
         run: |
           cmake --install ${{ env.BUILD_DIR }}
 
-      # 6. Mengunggah hasil build sebagai artifact
+      # 8. Mengunggah hasil build
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
