@@ -20,16 +20,16 @@ jobs:
     steps:
       # 1. Mengunduh kode sumber Anda (termasuk submodul) ke mesin virtual
       - name: Checkout Code + Submodules
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
       # 2. Menginstal Java JDK 8, yang dibutuhkan oleh MultiMC
       - name: Setup Java JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '8'
+          java-version: '21'
 
       # 3. Menginstal Qt (framework utama), menggunakan action buatan komunitas
       - name: Install Qt
@@ -49,6 +49,8 @@ jobs:
 
       # 5. Konfigurasi proyek menggunakan CMake
       - name: Configure CMake
+        id: cmake_configure
+        continue-on-error: true
         run: >
           cmake 
           -S .
@@ -58,15 +60,42 @@ jobs:
           -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }};C:\ProgramData\chocolatey\lib\openssl\tools;C:\ProgramData\chocolatey\lib\zlib\tools"
           -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations"
 
-      # 6. Meng-compile proyek menggunakan MinGW
-      - name: Build Project
-        run: cmake --build build --config Release -- -j2
+      # 6. Meng-upload log CMake jika konfigurasi gagal
+      - name: Upload CMake Logs on Failure
+        if: steps.cmake_configure.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmake-failure-logs
+          path: |
+            build/CMakeFiles/CMakeOutput.log
+            build/CMakeFiles/CMakeError.log
+          if-no-files-found: ignore
 
-      # 7. Menginstal aplikasi ke folder 'dist' untuk pengemasan
+      # 7. Meng-compile proyek menggunakan MinGW dan menyimpan log-nya
+      - name: Build Project
+        id: build_step
+        continue-on-error: true
+        run: cmake --build build --config Release -- -j2 > build_log.txt 2>&1
+
+      # 8. Meng-upload log build jika kompilasi gagal
+      - name: Upload Build Log on Failure
+        if: steps.build_step.outcome == 'failure' && steps.cmake_configure.outcome != 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-failure-log
+          path: build_log.txt
+          if-no-files-found: ignore
+          
+      # 9. Jika langkah build gagal, kita hentikan workflow di sini agar tidak melanjutkan
+      - name: Check build status
+        if: steps.build_step.outcome == 'failure' || steps.cmake_configure.outcome == 'failure'
+        run: exit 1
+
+      # 10. Menginstal aplikasi ke folder 'dist' untuk pengemasan
       - name: Install to Staging Directory
         run: cmake --install build --prefix ./dist
 
-      # 8. Mengunggah hasil akhir sebagai "Artifact"
+      # 11. Mengunggah hasil akhir sebagai "Artifact"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
