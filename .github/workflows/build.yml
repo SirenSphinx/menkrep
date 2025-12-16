@@ -35,8 +35,10 @@ jobs:
     steps:
     - name: Checkout repository and submodules
       uses: actions/checkout@v4
-      with:
-        submodules: 'recursive'
+
+    - name: Initialize submodules
+      run: git submodule update --init --recursive
+      shell: pwsh
 
     - name: Install Qt
       uses: jurplel/install-qt-action@v3
@@ -44,7 +46,7 @@ jobs:
         version: '5.15.2'
         arch: 'win32_mingw81'
 
-    - name: Install other dependencies
+    - name: Install MSYS2 and dependencies
       run: |
         choco install msys2 --params "'/InstallDir:C:\msys64'" -y
         C:\msys64\usr\bin\bash -lc 'pacman -Syu --noconfirm && pacman -S --noconfirm --needed mingw-w64-i686-zlib'
@@ -54,6 +56,8 @@ jobs:
     - name: Configure CMake
       run: |
         cmake -G "MinGW Makefiles" -B build -S . -DCMAKE_BUILD_TYPE=Release
+      env:
+        CMAKE_PREFIX_PATH: C:\msys64\mingw32
       shell: pwsh
 
     - name: Build with mingw32-make
@@ -69,7 +73,7 @@ jobs:
         Copy-Item -Path "$env:QT_ROOT_DIR/bin/Qt5Core.dll", "$env:QT_ROOT_DIR/bin/Qt5Gui.dll", "$env:QT_ROOT_DIR/bin/Qt5Network.dll", "$env:QT_ROOT_DIR/bin/Qt5Svg.dll", "$env:QT_ROOT_DIR/bin/Qt5Widgets.dll", "$env:QT_ROOT_DIR/bin/Qt5Xml.dll" -Destination $distDir
         Copy-Item -Path "$env:QT_ROOT_DIR/bin/libgcc_s_dw2-1.dll", "$env:QT_ROOT_DIR/bin/libstdc++-6.dll", "$env:QT_ROOT_DIR/bin/libwinpthread-1.dll" -Destination $distDir
         Copy-Item -Path "C:/Program Files/OpenSSL/bin/libeay32.dll", "C:/Program Files/OpenSSL/bin/ssleay32.dll" -Destination $distDir -ErrorAction SilentlyContinue
-        Copy-Item -Path "C:/ProgramData/chocolatey/lib/zlib/tools/zlib1.dll" -Destination $distDir -ErrorAction SilentlyContinue
+        Copy-Item -Path "C:/msys64/mingw32/bin/zlib1.dll" -Destination $distDir -ErrorAction SilentlyContinue
         # Copy Qt platform plugin
         mkdir "$distDir/platforms"
         Copy-Item -Path "$env:QT_ROOT_DIR/plugins/platforms/qwindows.dll" -Destination "$distDir/platforms"
