@@ -35,10 +35,16 @@ jobs:
     steps:
     - name: Checkout repository and submodules
       uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
 
     - name: Initialize submodules
       run: git submodule update --init --recursive
       shell: pwsh
+      
+    - name: List libraries content
+      run: ls -R libraries
+      shell: bash
 
     - name: Install Qt
       uses: jurplel/install-qt-action@v3
