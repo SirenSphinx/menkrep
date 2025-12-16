@@ -33,16 +33,23 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout repository and submodules
+    - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        submodules: 'recursive'
+
+    - name: Debug and Rewrite Submodule URLs
+      run: |
+        echo "--- .gitmodules before ---"
+        cat .gitmodules
+        sed -i 's/git@github.com:/https:\/\/github.com\//g' .gitmodules
+        echo "--- .gitmodules after ---"
+        cat .gitmodules
+      shell: bash
 
     - name: Initialize submodules
       run: git submodule update --init --recursive
       shell: pwsh
       
-    - name: List libraries content
+    - name: List libraries content for debug
       run: ls -R libraries
       shell: bash
 
