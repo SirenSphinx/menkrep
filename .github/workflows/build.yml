@@ -46,7 +46,7 @@ jobs:
 
     - name: Install other dependencies
       run: |
-        choco install openssl zlib -y
+        choco install openssl zlib-devel -y
       shell: pwsh
 
     - name: Configure CMake
